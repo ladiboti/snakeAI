@@ -133,6 +133,8 @@ class Algorithm():
                 action = self.decide_action(individual, observation)
                 observation, reward, done, _ = self.env.step(action)
                 individual.score += reward
+                print(f"population {_}")
+                print(f"reward {reward}")
                 if done:
                     break
         self.env.close()

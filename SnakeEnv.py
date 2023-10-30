@@ -11,7 +11,7 @@ from numpy import ndarray
 WINDOW: int = 1000
 TILE_SIZE: int = 50
 RANGE: Tuple[int, int, int] = (TILE_SIZE // 2, WINDOW - TILE_SIZE // 2, TILE_SIZE)
-FPS: int = 1000
+FPS: int = 10000
 get_random_position: Callable[[], List[int]] = lambda: [random.randrange(*RANGE), random.randrange(*RANGE)]
 
 
@@ -111,7 +111,7 @@ class SnakeEnv(gym.Env):
         # TODO: termination logic still hasnt implemented
         done: bool = False
 
-        return self._get_observation(), reward, done, _
+        return self._get_observation(), reward, done, 69420
 
     def render(self) -> None:
         # render the current game state from the previous rgb array observation

@@ -11,7 +11,7 @@ from numpy import ndarray
 WINDOW: int = 1000
 TILE_SIZE: int = 50
 RANGE: Tuple[int, int, int] = (TILE_SIZE // 2, WINDOW - TILE_SIZE // 2, TILE_SIZE)
-FPS: int = 100
+FPS: int = 1000
 get_random_position: Callable[[], List[int]] = lambda: [random.randrange(*RANGE), random.randrange(*RANGE)]
 
 
@@ -63,7 +63,7 @@ class SnakeEnv(gym.Env):
         self.snake_dir: Tuple[int, int] = (0, 0)
         self.segments: List[pg.Rect] = [self.snake.copy()]
 
-    def step(self, action: np.ndarray) -> Tuple[int, ndarray]:
+    def step(self, action: np.ndarray) -> Tuple[ndarray, int, bool, int]:
         # process the input action and update the current game state
         new_dir: Tuple[int, int] = self.snake_dir
 
@@ -108,7 +108,10 @@ class SnakeEnv(gym.Env):
         self.segments.append(self.snake.copy())
         self.segments = self.segments[-self.length:]
 
-        return reward, self._get_observation()
+        # TODO: termination logic still hasnt implemented
+        done: bool = False
+
+        return self._get_observation(), reward, done, _
 
     def render(self) -> None:
         # render the current game state from the previous rgb array observation
@@ -140,10 +143,11 @@ class SnakeEnv(gym.Env):
 
 def calculate_reward(old_dist, new_dist) -> int:
     # define the reward logic based on the changes of game state
+    reward: int = 0
     if new_dist < old_dist:
-        reward: int = 10
+        reward = 10
     elif new_dist > old_dist:
-        reward: int = -10
+        reward = -10
 
     return reward
 
@@ -154,9 +158,9 @@ pg.init()
 screen: pg.Surface = pg.display.set_mode((WINDOW, WINDOW))
 
 # run the game loop for a specified number of iterations, sampling actions, taking steps, and rendering the environment.
-for _ in range(10000):
+while True:
     action: np.ndarray = env.action_space.sample()
-    reward, observation = env.step(action)
+    observation, reward, done, _ = env.step(action)
     env.render()
 
 # TODO: implement a reward and a termination function

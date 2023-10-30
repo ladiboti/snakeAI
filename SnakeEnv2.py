@@ -5,6 +5,8 @@ import random
 from gymnasium import spaces
 from typing import List, Tuple, Callable
 
+from numpy import ndarray
+
 # Constants
 WINDOW: int = 1000
 TILE_SIZE: int = 50
@@ -61,7 +63,7 @@ class SnakeEnv(gym.Env):
         self.snake_dir: Tuple[int, int] = (0, 0)
         self.segments: List[pg.Rect] = [self.snake.copy()]
 
-    def step(self, action: np.ndarray) -> None:
+    def step(self, action: np.ndarray) -> Tuple[int, ndarray]:
         # process the input action and update the current game state
         new_dir: Tuple[int, int] = self.snake_dir
 
@@ -91,21 +93,22 @@ class SnakeEnv(gym.Env):
             self.food.center = get_random_position()
             self.length += 1
 
+        # calculate reward by the Manhattan distance of the snake's head and the food
+        new_snake: pg.Rect = self.snake.copy()
+        new_snake.move_ip(self.snake_dir)
+
+        old_dist = abs(self.snake.x - self.food.x) + abs(self.snake.y - self.food.y)
+        new_dist = abs(new_snake.x - self.food.x) + abs(new_snake.y - self.food.y)
+
+        reward = calculate_reward(old_dist, new_dist)
+
         # move the snake, append the current position to the list of segments
         # update the segments to retain the length of the snake
         self.snake.move_ip(self.snake_dir)
         self.segments.append(self.snake.copy())
         self.segments = self.segments[-self.length:]
 
-    def _get_observation(self) -> np.ndarray:
-        # return the current game steate in an rgb array
-        screen: pg.Surface = pg.Surface((WINDOW, WINDOW))
-        screen.fill((0, 0, 0))
-        pg.draw.rect(screen, (255, 0, 0), self.food)
-        [pg.draw.rect(screen, (0, 255, 0), segment) for segment in self.segments]
-        observation: np.ndarray = pg.surfarray.pixels3d(screen)
-
-        return np.transpose(observation, axes=(1, 0, 2))
+        return reward, self._get_observation()
 
     def render(self) -> None:
         # render the current game state from the previous rgb array observation
@@ -124,6 +127,26 @@ class SnakeEnv(gym.Env):
 
         clock.tick(FPS)
 
+    def _get_observation(self) -> np.ndarray:
+        # return the current game state in a rgb array
+        screen: pg.Surface = pg.Surface((WINDOW, WINDOW))
+        screen.fill((0, 0, 0))
+        pg.draw.rect(screen, (255, 0, 0), self.food)
+        [pg.draw.rect(screen, (0, 255, 0), segment) for segment in self.segments]
+        observation: np.ndarray = pg.surfarray.pixels3d(screen)
+
+        return np.transpose(observation, axes=(1, 0, 2))
+
+
+def calculate_reward(old_dist, new_dist) -> int:
+    # define the reward logic based on the changes of game state
+    if new_dist < old_dist:
+        reward: int = 10
+    elif new_dist > old_dist:
+        reward: int = -10
+
+    return reward
+
 
 # set up the Snake environment, initialize the Pygame module, and create a screen for rendering the game.
 env: SnakeEnv = SnakeEnv()
@@ -133,7 +156,7 @@ screen: pg.Surface = pg.display.set_mode((WINDOW, WINDOW))
 # run the game loop for a specified number of iterations, sampling actions, taking steps, and rendering the environment.
 for _ in range(10000):
     action: np.ndarray = env.action_space.sample()
-    env.step(action)
+    reward, observation = env.step(action)
     env.render()
 
 # TODO: implement a reward and a termination function

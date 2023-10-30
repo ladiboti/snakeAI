@@ -4,6 +4,8 @@ import gymnasium as gym
 from gymnasium import spaces
 from random import randrange
 
+from gymnasium.spaces import MultiBinary
+
 # Constants
 WINDOW = 600
 TILE_SIZE = 20
@@ -63,6 +65,7 @@ class SnakeEnv(gym.Env):
         # Check for self-collision
         head = self.snake.copy()
         head.move_ip(self.snake_dir)
+
         if head.collidelist(self.segments[:-1]) is not None:
             self.reset()
 
@@ -73,6 +76,10 @@ class SnakeEnv(gym.Env):
         if self.snake.center == self.food.center:
             self.food.center = get_random_position()
             self.length += 1
+            print("food found")
+
+        if self.length == 10:
+            done = True
 
         # Calculate the reward
         old_distance = abs(self.snake.x - self.food.x) + abs(self.snake.y - self.food.y)
@@ -110,13 +117,12 @@ class SnakeEnv(gym.Env):
             if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                 pg.quit()
 
-
         screen.fill((0, 0, 0))
         surface = pg.surfarray.make_surface(np.transpose(self._get_observation(), axes=(1, 0, 2)))
         screen.blit(surface, (0, 0))
         pg.display.flip()
 
-        clock.tick(60)
+        # clock.tick(100)
 
 
 env = SnakeEnv()
@@ -125,6 +131,7 @@ observation = env.reset()
 pg.init()
 screen = pg.display.set_mode((WINDOW, WINDOW))
 
+
 for i in range(10000):
     action = env.action_space.sample()  # NN.forward(observation)
     observation, reward, done, none = env.step(action)
@@ -132,3 +139,14 @@ for i in range(10000):
     env.render()
     if done:
         print(f"Finished after {i + 1} steps")
+
+
+observation_space = spaces.Tuple((
+    spaces.Discrete(4),
+))
+
+selected_index = observation_space[0].sample()
+action_vector = np.zeros(4)
+action_vector[selected_index] = 1
+
+print(action_vector)

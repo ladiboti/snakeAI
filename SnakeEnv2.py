@@ -13,18 +13,14 @@ FPS: int = 100
 get_random_position: Callable[[], List[int]] = lambda: [random.randrange(*RANGE), random.randrange(*RANGE)]
 
 
-def create_binary_vector() -> np.ndarray:
-    random_index: int = random.randint(0, 3)
-    binary_vector: np.ndarray = np.zeros(4)
-    binary_vector[random_index] = 1
-    return binary_vector
-
-
 class BinaryActionSpace:
-    def __init__(self) -> None:
-        self.binary_space_size: int = 4
+    def __init__(self, size: int) -> None:
+        # left, right, up, down, might consider hardcoding it instead
+        self.binary_space_size: int = size
 
     def sample(self) -> np.ndarray:
+        # create a binary vector of specified size and set one of the elements randomly to 1
+        # example output: [0, 1, 0, 0]
         binary_vector: np.ndarray = np.zeros(self.binary_space_size)
         random_index: int = random.randint(0, self.binary_space_size - 1)
         binary_vector[random_index] = 1
@@ -36,6 +32,7 @@ class SnakeEnv(gym.Env):
     def __init__(self) -> None:
         super(SnakeEnv, self).__init__()
 
+        # define the observation space, currently the snake is able to observe the whole screen
         self.observation_space: spaces.Box = spaces.Box(
             low=0,
             high=255,
@@ -43,8 +40,10 @@ class SnakeEnv(gym.Env):
             dtype=np.uint8
         )
 
-        self.action_space: BinaryActionSpace = BinaryActionSpace()
+        # creating the action space using the BinaryActionSpace class, with a specified binary space size of 4
+        self.action_space: BinaryActionSpace = BinaryActionSpace(4)
 
+        # initialize the game parameters
         self.snake: pg.Rect = pg.Rect([0, 0, TILE_SIZE - 2, TILE_SIZE - 2])
         self.snake.center = get_random_position()
         self.length: int = 1
@@ -55,6 +54,7 @@ class SnakeEnv(gym.Env):
         self.food.center = get_random_position()
 
     def reset(self, **kwargs) -> None:
+        # reset the game state by repositioning the snake and the food
         self.snake.center = get_random_position()
         self.food.center = get_random_position()
         self.length: int = 1
@@ -62,6 +62,7 @@ class SnakeEnv(gym.Env):
         self.segments: List[pg.Rect] = [self.snake.copy()]
 
     def step(self, action: np.ndarray) -> None:
+        # process the input action and update the current game state
         new_dir: Tuple[int, int] = self.snake_dir
 
         if action[0] == 1:  # up
@@ -73,26 +74,31 @@ class SnakeEnv(gym.Env):
         elif action[3] == 1:  # right
             new_dir = (TILE_SIZE, 0)
 
+        # prohibiting snake moving to the opposite direction
         if (new_dir[0], -new_dir[1]) != self.snake_dir and (-new_dir[0], new_dir[1]) != self.snake_dir:
             self.snake_dir = new_dir
 
+        # prohibiting self collision or moving out of the screen
         body_collision: bool = pg.Rect.collidelist(self.snake, self.segments[:-1]) != -1
-
-        if self.snake.center == self.food.center:
-            self.food.center = get_random_position()
-            self.length += 1
-
         if (self.snake.left < 0 or
                 self.snake.right > WINDOW or
                 self.snake.top < 0 or
                 self.snake.bottom > WINDOW or body_collision):
             self.reset()
 
+        # when the snake coincides with the food, move the food to a new position and increment the length of the snake
+        if self.snake.center == self.food.center:
+            self.food.center = get_random_position()
+            self.length += 1
+
+        # move the snake, append the current position to the list of segments
+        # update the segments to retain the length of the snake
         self.snake.move_ip(self.snake_dir)
         self.segments.append(self.snake.copy())
         self.segments = self.segments[-self.length:]
 
     def _get_observation(self) -> np.ndarray:
+        # return the current game steate in an rgb array
         screen: pg.Surface = pg.Surface((WINDOW, WINDOW))
         screen.fill((0, 0, 0))
         pg.draw.rect(screen, (255, 0, 0), self.food)
@@ -102,6 +108,7 @@ class SnakeEnv(gym.Env):
         return np.transpose(observation, axes=(1, 0, 2))
 
     def render(self) -> None:
+        # render the current game state from the previous rgb array observation
         clock: pg.time.Clock = pg.time.Clock()
 
         for event in pg.event.get():
@@ -118,11 +125,15 @@ class SnakeEnv(gym.Env):
         clock.tick(FPS)
 
 
+# set up the Snake environment, initialize the Pygame module, and create a screen for rendering the game.
 env: SnakeEnv = SnakeEnv()
 pg.init()
 screen: pg.Surface = pg.display.set_mode((WINDOW, WINDOW))
 
+# run the game loop for a specified number of iterations, sampling actions, taking steps, and rendering the environment.
 for _ in range(10000):
     action: np.ndarray = env.action_space.sample()
     env.step(action)
     env.render()
+
+# TODO: implement a reward and a termination function

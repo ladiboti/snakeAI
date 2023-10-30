@@ -2,7 +2,7 @@ import numpy as np
 import gymnasium as gym
 from net import *
 import torch.nn
-import SnakeEnv
+import SnakeEnv_beta
 
 '''
 class Algorithm():

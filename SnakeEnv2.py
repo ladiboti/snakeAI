@@ -9,6 +9,7 @@ from typing import List, Tuple, Callable
 WINDOW: int = 1000
 TILE_SIZE: int = 50
 RANGE: Tuple[int, int, int] = (TILE_SIZE // 2, WINDOW - TILE_SIZE // 2, TILE_SIZE)
+FPS: int = 100
 get_random_position: Callable[[], List[int]] = lambda: [random.randrange(*RANGE), random.randrange(*RANGE)]
 
 
@@ -20,13 +21,14 @@ def create_binary_vector() -> np.ndarray:
 
 
 class BinaryActionSpace:
-    def __init__(self):
+    def __init__(self) -> None:
         self.binary_space_size: int = 4
 
     def sample(self) -> np.ndarray:
-        binary_vector = np.zeros(self.binary_space_size)
-        random_index = random.randint(0, self.binary_space_size - 1)
+        binary_vector: np.ndarray = np.zeros(self.binary_space_size)
+        random_index: int = random.randint(0, self.binary_space_size - 1)
         binary_vector[random_index] = 1
+
         return binary_vector
 
 
@@ -60,18 +62,31 @@ class SnakeEnv(gym.Env):
         self.segments: List[pg.Rect] = [self.snake.copy()]
 
     def step(self, action: np.ndarray) -> None:
+        new_dir: Tuple[int, int] = self.snake_dir
+
         if action[0] == 1:  # up
-            self.snake_dir = (0, -TILE_SIZE)
+            new_dir = (0, -TILE_SIZE)
         elif action[1] == 1:  # down
-            self.snake_dir = (0, TILE_SIZE)
+            new_dir = (0, TILE_SIZE)
         elif action[2] == 1:  # left
-            self.snake_dir = (-TILE_SIZE, 0)
+            new_dir = (-TILE_SIZE, 0)
         elif action[3] == 1:  # right
-            self.snake_dir = (TILE_SIZE, 0)
+            new_dir = (TILE_SIZE, 0)
+
+        if (new_dir[0], -new_dir[1]) != self.snake_dir and (-new_dir[0], new_dir[1]) != self.snake_dir:
+            self.snake_dir = new_dir
+
+        body_collision: bool = pg.Rect.collidelist(self.snake, self.segments[:-1]) != -1
 
         if self.snake.center == self.food.center:
             self.food.center = get_random_position()
             self.length += 1
+
+        if (self.snake.left < 0 or
+                self.snake.right > WINDOW or
+                self.snake.top < 0 or
+                self.snake.bottom > WINDOW or body_collision):
+            self.reset()
 
         self.snake.move_ip(self.snake_dir)
         self.segments.append(self.snake.copy())
@@ -83,6 +98,7 @@ class SnakeEnv(gym.Env):
         pg.draw.rect(screen, (255, 0, 0), self.food)
         [pg.draw.rect(screen, (0, 255, 0), segment) for segment in self.segments]
         observation: np.ndarray = pg.surfarray.pixels3d(screen)
+
         return np.transpose(observation, axes=(1, 0, 2))
 
     def render(self) -> None:
@@ -99,12 +115,14 @@ class SnakeEnv(gym.Env):
         screen.blit(surface, (0, 0))
         pg.display.flip()
 
+        clock.tick(FPS)
+
 
 env: SnakeEnv = SnakeEnv()
 pg.init()
 screen: pg.Surface = pg.display.set_mode((WINDOW, WINDOW))
 
-for _ in range(1000):
+for _ in range(10000):
     action: np.ndarray = env.action_space.sample()
     env.step(action)
     env.render()
